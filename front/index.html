@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    // this was made by gemini cause i legit cant wrap my brain around frontend coding
+    // anyways it basically just displays the arduino data from ably in a grid pattern
+    // uses temporary ably tokens which it gets from tokenRequest.py in the backend
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Parking Status</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
+    <style>
+        /* Custom styles for spot colors and transitions */
+        body {
+            font-family: 'Inter', sans-serif; /* Optional: Use a specific font */
+        }
+        .parking-spot {
+            /* Smooth transition for background color changes */
+            transition: background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
+            /* Basic border */
+            border: 2px solid transparent;
+        }
+        .spot-open {
+            /* Tailwind green-400 */
+            background-color: #4ade80;
+            border-color: #22c55e; /* darker green border */
+            color: #14532d; /* dark green text */
+        }
+        .spot-closed {
+            /* Tailwind red-500 */
+            background-color: #ef4444;
+            border-color: #dc2626; /* darker red border */
+            color: #7f1d1d; /* dark red text */
+        }
+        .spot-unknown {
+            /* Tailwind gray-300 */
+            background-color: #d1d5db;
+            border-color: #9ca3af; /* darker gray border */
+            color: #374151; /* dark gray text */
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white p-6 md:p-8 rounded-lg shadow-xl w-full max-w-2xl">
+        <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-6">Parking Lot Status</h1>
+
+        <div id="connection-status" class="text-center mb-6 p-2 rounded-md text-sm font-medium border">
+            Initializing...
+        </div>
+
+        <div id="parking-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+
+            <div id="lot-1" class="parking-spot spot-unknown p-4 h-24 rounded-md text-center font-semibold text-lg flex items-center justify-center shadow">
+                Lot 1
+            </div>
+
+            <div id="lot-2" class="parking-spot spot-unknown p-4 h-24 rounded-md text-center font-semibold text-lg flex items-center justify-center shadow">
+                Lot 2
+            </div>
+
+            <div id="lot-3" class="parking-spot spot-unknown p-4 h-24 rounded-md text-center font-semibold text-lg flex items-center justify-center shadow">
+                Lot 3
+            </div>
+
+            </div>
+
+        <div class="mt-8 flex justify-center items-center space-x-4 text-sm text-gray-600">
+            <div class="flex items-center">
+                <span class="w-4 h-4 rounded-sm bg-green-400 border border-gray-400 mr-2"></span> Open
+            </div>
+            <div class="flex items-center">
+                <span class="w-4 h-4 rounded-sm bg-red-500 border border-gray-400 mr-2"></span> Closed
+            </div>
+             <div class="flex items-center">
+                <span class="w-4 h-4 rounded-sm bg-gray-300 border border-gray-400 mr-2"></span> Unknown
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        // Define the URL for the backend token endpoint
+        const auth_url = '/api/tokenRequest';
+
+        // --- HTML Elements ---
+        const connectionStatusEl = document.getElementById('connection-status');
+
+        // --- Functions ---
+
+        /**
+         * Updates the visual appearance of a parking spot element.
+         * @param {string} elementId - The HTML ID of the spot element (e.g., "lot-1").
+         * @param {string} status - The new status ("Open", "Closed", or "Unknown").
+         */
+        function updateSpotAppearance(elementId, status) {
+            const spotElement = document.getElementById(elementId);
+            if (spotElement) {
+                // Remove previous status classes
+                spotElement.classList.remove('spot-open', 'spot-closed', 'spot-unknown');
+
+                // Add the new status class based on the string from Python
+                if (status === 'Open') {
+                    spotElement.classList.add('spot-open');
+                } else if (status === 'Closed') {
+                    spotElement.classList.add('spot-closed');
+                } else {
+                    // Fallback for any unexpected status or initial state
+                    spotElement.classList.add('spot-unknown');
+                }
+            } else {
+                console.warn(`Spot element not found for ID: ${elementId}`);
+            }
+        }
+
+        /**
+         * Updates the connection status indicator element.
+         * @param {string} state - The current connection state.
+         * @param {string} [reason=''] - Optional reason.
+         */
+         function updateConnectionStatus(state, reason = '') {
+            console.log(`Ably connection state changed: ${state}`, reason);
+            // Remove previous styles - uses Tailwind classes
+            connectionStatusEl.classList.remove(
+                'bg-green-100', 'text-green-800', 'border-green-300',
+                'bg-red-100', 'text-red-800', 'border-red-300',
+                'bg-yellow-100', 'text-yellow-800', 'border-yellow-300',
+                'bg-gray-100', 'text-gray-800', 'border-gray-300'
+            );
+
+            let message = '';
+            let styleClasses = 'bg-gray-100 text-gray-800 border-gray-300'; // Default
+
+            switch (state) {
+                case 'initialized': message = 'Initializing...'; styleClasses = 'bg-yellow-100 text-yellow-800 border-yellow-300'; break;
+                case 'connecting': message = 'Connecting to real-time service...'; styleClasses = 'bg-yellow-100 text-yellow-800 border-yellow-300'; break;
+                case 'connected': message = 'Connected - Listening for updates'; styleClasses = 'bg-green-100 text-green-800 border-green-300'; break;
+                case 'disconnected': message = 'Disconnected. Attempting to reconnect...'; styleClasses = 'bg-red-100 text-red-800 border-red-300'; break;
+                case 'suspended': message = 'Connection suspended. Check network/token.'; styleClasses = 'bg-red-100 text-red-800 border-red-300'; break;
+                case 'closing': message = 'Closing connection...'; styleClasses = 'bg-yellow-100 text-yellow-800 border-yellow-300'; break;
+                case 'closed': message = 'Connection closed.'; styleClasses = 'bg-red-100 text-red-800 border-red-300'; break;
+                case 'failed': message = `Connection failed: ${reason || 'Check endpoint/key'}`; styleClasses = 'bg-red-100 text-red-800 border-red-300'; break;
+                default: message = `Unknown state: ${state}`;
+            }
+            connectionStatusEl.textContent = message;
+            // Apply new styles by splitting the space-separated string
+            connectionStatusEl.classList.add(...styleClasses.split(' '));
+        }
+
+
+        // --- Ably Initialization and Subscription (Using Token Auth) ---
+        try {
+            console.log("Initializing Ably with authUrl:", auth_url);
+            updateConnectionStatus('initialized');
+
+            // instantiate Ably using authUrl
+            const ably = new Ably.Realtime({
+                authUrl: auth_url,
+                // log: { level: 4 } // Uncomment for verbose Ably logs in console
+            });
+
+            // --- Handle Connection State Changes ---
+            ably.connection.on((stateChange) => {
+                let reasonMsg = stateChange.reason?.message || '';
+                // Add hints for common failure reasons
+                if (stateChange.current === 'failed' && stateChange.reason?.statusCode === 401) {
+                     reasonMsg += ' (Auth Error - Check token endpoint & API key)';
+                } else if (stateChange.current === 'failed' && !navigator.onLine) {
+                     reasonMsg += ' (Network Offline?)';
+                } else if (stateChange.current === 'failed') {
+                     reasonMsg += ' (Check server logs for token endpoint)';
+                }
+                updateConnectionStatus(stateChange.current, reasonMsg);
+            });
+
+            // Get the channel
+            const channel = ably.channels.get('the_park');
+
+            // --- Subscribe to Messages ---
+            // Listen for messages with the specific event name from Python
+            channel.subscribe('Status update.', (message) => {
+                console.log("Received Ably message:", message.name, message.data);
+                const statuses = message.data; // Should be {'Lot 1': 'Closed', 'Lot 2': 'Open', ...}
+
+                if (statuses && typeof statuses === 'object') {
+                    // Loop through the received status dictionary
+                    for (const lotKey in statuses) {
+                        // Check if the key is actually from the object itself
+                        if (Object.hasOwnProperty.call(statuses, lotKey)) {
+                            const status = statuses[lotKey]; // 'Open' or 'Closed'
+
+                            // Convert the key ("Lot 1") to the HTML element ID ("lot-1")
+                            const elementId = lotKey.replace(' ', '-').toLowerCase();
+
+                            // Update the appearance of the corresponding spot
+                            updateSpotAppearance(elementId, status);
+                        }
+                    }
+                } else {
+                    console.warn("Received message data in unexpected format:", message.data);
+                }
+            });
+
+             // Optional: Set initial state visually (already done via CSS class 'spot-unknown')
+             // If you wanted to fetch historical state, you could do it here.
+
+        } catch (error) {
+            console.error("Error initializing Ably:", error);
+            updateConnectionStatus('failed', `Initialization error: ${error.message}`);
+        }
+
+        // Note: No need to call createParkingGrid like in previous examples,
+        // as the spots are now hardcoded in the HTML.
+
+    </script>
+
+</body>
+</html>

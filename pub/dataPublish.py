@@ -1,3 +1,6 @@
+# gets data from the serial port and publishes it to an ably channel
+# gemini helped a lot, thanks gemini!!
+
 import time
 import os
 from ably import AblyRest
@@ -38,7 +41,7 @@ while True:
                 status = dict(zip(("Lot 1", "Lot 2", "Lot 3"), gandalf))
                 # Publish the data to Ably
                 print(f"Publishing status update to Ably")
-                channel.publish("Status update", status)
+                channel.publish("Status update.", status)
     except ValueError:
         print(f"Warning: Received data in unexpected format")
     except serial.SerialException:

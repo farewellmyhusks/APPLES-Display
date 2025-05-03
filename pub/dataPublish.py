@@ -19,9 +19,12 @@ try:
 except Exception as e:
     print(f"Error connecting to Ably: {e}")
     exit()
-
-ser = serial.Serial('COM3', 9600)
-print("Starting to listen for Arduino data...")
+try:
+    ser = serial.Serial('COM3', 9600)
+    print("Starting to listen for Arduino data...")
+except serial.SerialException:
+    print(f"Something went wrong with the serial port")
+    exit()
 while True:
     try:
         # Check if there's data waiting on the serial port

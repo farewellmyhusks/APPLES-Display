@@ -45,16 +45,7 @@ async def token_request():
             print(f"Token request generated successfully for clientId: {token_params['clientId']}")
             print(f"Token generated: {token}")
             # troubleshooted this with gemini and she gave me the code so thank u
-            token_dict = {
-                "keyName": token['keyName'],
-                "expires": token['expires'],
-                "issued": token['issued'],
-                "capability": json.dumps(token['capability']), # Capability needs to be a JSON string
-                "clientId": token['clientId'],
-                "nonce": token['nonce'],
-                "timestamp": token['timestamp'],
-                "mac": token['mac']
-            }
+            token_dict = json.dumps(token)
             return token_dict
         except Exception as e:
             print(f"Error generating token: {e}")

@@ -1,5 +1,5 @@
-# api/tokenRequest.py
-# (Based on user's uploaded tokenRequest.py, with fixes and added logging)
+## api/tokenRequest.py
+# (Handles TokenRequest serialization)
 
 import flask # Use flask directly as imported by user
 import os
@@ -10,7 +10,7 @@ import logging # Import logging
 
 # --- Logging Configuration ---
 # Set up basic logging to see messages from the Ably library and our script
-logging.basicConfig(level=logging.DEBUG, # Use DEBUG to capture more info
+logging.basicConfig(level=logging.INFO, # Changed level to INFO for less noise now
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 log = logging.getLogger(__name__) # Get a logger for this module
 
@@ -72,29 +72,22 @@ async def token_request(): # Route handler is async
         log.info(f"Requesting token with params: {token_params}")
         token_data = await ably_client.auth.create_token_request(token_params=token_params) # Added await
 
-        # Log details about the received token data BEFORE trying to return it
-        log.debug(f"Token request data received from Ably: {token_data}")
-        log.debug(f"Type of token_data: {type(token_data)}")
+        # token_data is a TokenRequest object, but jsonify should handle it
+        log.info(f"Token request generated successfully for clientId: {token_params['clientId']}")
+        log.debug(f"TokenRequest object: {token_data}") # Keep debug log if needed
 
-        # Attempt to return the token request data as JSON using flask.jsonify
-        log.info(f"Attempting to jsonify and return token data for clientId: {token_params['clientId']}")
-        response = flask.jsonify(token_data)
-        log.info("Successfully created JSON response.")
-        return response
+        # *** FIX: Return the TokenRequest object directly using jsonify ***
+        # Flask's jsonify is generally able to serialize dict-like objects.
+        return flask.jsonify(token_data)
 
     except Exception as e:
-        # *** CRITICAL: Log the full exception traceback ***
+        # Log the full exception traceback
         log.exception(f"Error generating token request or creating response: {e}")
         # Return a JSON error response
         return flask.jsonify({"error": "Failed to generate token request", "details": str(e)}), 500
 
 # --- Local Testing Setup ---
-# This block allows running locally using an ASGI server like Hypercorn
-# Example command: hypercorn api.tokenRequest:app --reload
-# (Note: Changed filename in example command to match file)
 if __name__ == '__main__':
-    # This part is primarily for informational purposes when run directly
-    # The actual serving for local testing should be done via Hypercorn/Uvicorn
     print("Flask app defined. To run locally for testing async route:")
     print("1. Ensure 'hypercorn' is installed (`pip install hypercorn`).")
     print("2. Run: `hypercorn api.tokenRequest:app --reload` (assuming file is api/tokenRequest.py)")

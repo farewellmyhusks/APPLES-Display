@@ -7,6 +7,7 @@ import os
 import asyncio
 from dotenv import load_dotenv
 from ably import AblyRest
+import json
 
 # dotenv for local hosting and testing
 load_dotenv()
@@ -43,7 +44,18 @@ async def token_request():
             token = await ably_client.auth.create_token_request(token_params)
             print(f"Token request generated successfully for clientId: {token_params['clientId']}")
             print(f"Token generated: {token}")
-            return token
+            # troubleshooted this with gemini and she gave me the code so thank u
+            token_dict = {
+                "keyName": token.key_name,
+                "expires": token.expires,
+                "issued": token.issued,
+                "capability": json.dumps(token.capability),  # Capability needs to be a JSON string
+                "clientId": token.client_id,
+                "nonce": token.nonce,
+                "timestamp": token.timestamp,
+                "mac": token.mac
+            }
+            return token_dict
         except Exception as e:
             print(f"Error generating token: {e}")
             return "Error generating token", 500

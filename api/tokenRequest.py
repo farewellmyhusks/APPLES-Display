@@ -39,12 +39,13 @@ async def token_request():
                 "capability": {
                     "the_park": ["publish", "subscribe"]  # User's specified capabilities
                 },
-                'ttl': 60 * 20  # User's specified TTL (20 minutes)
+                'ttl': 1200
             }
             token = await ably_client.auth.create_token_request(token_params)
             print(f"Token request generated successfully for clientId: {token_params['clientId']}")
             print(f"Token generated: {token}")
             # troubleshooted this with gemini and she gave me the code so thank u
+            print(token.tll)
             token_dict = {
                 "keyName": token.key_name,
                 "ttl": token.ttl,

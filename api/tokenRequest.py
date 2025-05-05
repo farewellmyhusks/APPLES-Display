@@ -7,7 +7,6 @@ import os
 import asyncio
 from dotenv import load_dotenv
 from ably import AblyRest
-import pandas
 import json
 
 # dotenv for local hosting and testing

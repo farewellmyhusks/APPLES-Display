@@ -47,12 +47,11 @@ async def token_request():
             # troubleshooted this with gemini and she gave me the code so thank u
             token_dict = {
                 "keyName": token.key_name,
-                "expires": token.expires,
-                "issued": token.issued,
+                "ttl": token.ttl,
+                "timestamp": token.timestamp,
                 "capability": token.capability,  # Capability needs to be a JSON string
                 "clientId": token.client_id,
                 "nonce": token.nonce,
-                "timestamp": token.timestamp,
                 "mac": token.mac
             }
             return token_dict

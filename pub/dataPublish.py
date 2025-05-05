@@ -1,56 +1,82 @@
 # gets data from the serial port and publishes it to an ably channel
 # gemini helped a lot, thanks gemini!!
 
-import time
 import os
 from ably import AblyRest
 import serial
 from dotenv import load_dotenv
+import asyncio
 
 load_dotenv()
 apiKey = os.getenv("apiKey")
+print(apiKey)
 
 print("Connecting to Ably...")
-try:
-    # Use AblyRest for publishing from a backend script
-    ably = AblyRest(apiKey)
-    channel = ably.channels.get("the_park")
-    print("Successfully connected to Ably channel: the_park")
-except Exception as e:
-    print(f"Error connecting to Ably: {e}")
-    exit()
-try:
-    ser = serial.Serial('COM3', 9600)
-    print("Starting to listen for Arduino data...")
-except serial.SerialException:
-    print(f"Something went wrong with the serial port")
-    exit()
-while True:
+async def main():
     try:
-        # Check if there's data waiting on the serial port
-        if ser.in_waiting > 0:
-            # Read a line from the serial port (up to the newline character)
-            # Decode from bytes to string and remove leading/trailing whitespace
-            line = ser.readline().decode('utf-8').strip()
-
-            if line:  # Only process if the line is not empty
-                print(f"Received from Arduino: {line}")
-                gandalf = []
-                for i in tuple(line):
-                    if i == '1':
-                        gandalf.append("Open")
-                    else:
-                        gandalf.append("Closed")
-                status = dict(zip(("Lot 1", "Lot 2", "Lot 3"), gandalf))
-                # Publish the data to Ably
-                print(f"Publishing status update to Ably")
-                channel.publish("Status update.", status)
-    except ValueError:
-        print(f"Warning: Received data in unexpected format")
-    except serial.SerialException:
-        print(f"Something went wrong with the serial port, trying to reconnect in 15 seconds")
-        ser = None
-        time.sleep(15)
-        ser = serial.Serial('COM3', 9600)
+        # Use AblyRest for publishing from a backend script
+        ably = AblyRest(apiKey)
+        channel = ably.channels.get('the_park')
+        print("Successfully connected to Ably channel: the_park")
     except Exception as e:
-        print(f"An error occurred during data parsing or validation: {e}")
+        print(f"Error connecting to Ably: {e}")
+        exit()
+    try:
+        ser = serial.Serial('COM3', 9600, timeout=1)
+        print("Starting to listen for Arduino data...")
+    except Exception as e:
+        print(f"Something went wrong with the serial port: {e}")
+        exit()
+    while True:
+        try:
+            # Check if there's data waiting on the serial port
+            if ser.in_waiting > 0:
+                # Read a line from the serial port (up to the newline character)
+                # Decode from bytes to string and remove leading/trailing whitespace
+                line = await asyncio.to_thread(ser.readline())
+                line = line.decode('utf-8').strip()
+
+                if line:  # Only process if the line is not empty
+                    print(f"Received from Arduino: {line}")
+                    gandalf = []
+                    for i in tuple(line):
+                        if i == '1':
+                            gandalf.append("Open")
+                        else:
+                            gandalf.append("Closed")
+                    status = dict(zip(("Lot 1", "Lot 2", "Lot 3"), gandalf))
+                    print(status)
+                    # Publish the data to Ably
+                    print(f"Publishing status update to Ably")
+                    try:
+                        await channel.publish("Status update.", status)
+                    except Exception as e:
+                        print(f"An error occured: {e}")
+                    await asyncio.sleep(1)
+        except ValueError:
+            print(f"Warning: Received data in unexpected format")
+        except serial.SerialException:
+            print(f"Something went wrong with the serial port, trying to reconnect in 15 seconds")
+            ser = None
+            await asyncio.sleep(15)
+            ser = await asyncio.to_thread(serial.Serial('COM3', 9600, timeout=1))
+        except Exception as e:
+            print(f"An error occurred during data parsing or validation: {e}")
+        except KeyboardInterrupt:
+            print("Keyboard interrupt received.")
+            if ser and ser.is_open:
+                try:
+                    ser.close()
+                    print("Serial port closed.")
+                except Exception as e_close:
+                    print(f"Error closing serial port during cleanup: {e_close}")
+            if ably:
+                try:
+                    print("Closing Ably client...")
+                    await ably.close()  # Use await for async close
+                    print("Ably client closed.")
+                except Exception as e_ably_close:
+                    print(f"Error closing Ably client: {e_ably_close}")
+            print("Cleanup finished.")
+
+asyncio.run(main())

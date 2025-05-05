@@ -2,7 +2,7 @@
 # gemini helped a lot, thanks gemini!!
 
 import os
-from ably import AblyRest
+from ably import AblyRealtime
 import serial
 from dotenv import load_dotenv
 import asyncio
@@ -15,7 +15,7 @@ print("Connecting to Ably...")
 async def main():
     try:
         # Use AblyRest for publishing from a backend script
-        ably = AblyRest(apiKey)
+        ably = AblyRealtime(apiKey)
         channel = ably.channels.get('the_park')
         print("Successfully connected to Ably channel: the_park")
     except Exception as e:
@@ -41,9 +41,9 @@ async def main():
                     gandalf = []
                     for i in tuple(line):
                         if i == '1':
-                            gandalf.append("Open")
-                        else:
                             gandalf.append("Closed")
+                        else:
+                            gandalf.append("Open")
                     status = dict(zip(("Lot 1", "Lot 2", "Lot 3"), gandalf))
                     print(status)
                     # Publish the data to Ably
@@ -52,7 +52,6 @@ async def main():
                         await channel.publish("Status update.", status)
                     except Exception as e:
                         print(f"An error occured: {e}")
-                    await asyncio.sleep(1)
         except ValueError:
             print(f"Warning: Received data in unexpected format")
         except serial.SerialException:

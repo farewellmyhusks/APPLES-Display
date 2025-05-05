@@ -33,7 +33,7 @@ async def main():
             if ser.in_waiting > 0:
                 # Read a line from the serial port (up to the newline character)
                 # Decode from bytes to string and remove leading/trailing whitespace
-                line = await asyncio.to_thread(ser.readline())
+                line = await asyncio.to_thread(ser.readline)
                 line = line.decode('utf-8').strip()
 
                 if line:  # Only process if the line is not empty
@@ -59,7 +59,7 @@ async def main():
             print(f"Something went wrong with the serial port, trying to reconnect in 15 seconds")
             ser = None
             await asyncio.sleep(15)
-            ser = await asyncio.to_thread(serial.Serial('COM3', 9600, timeout=1))
+            ser = await asyncio.to_thread(serial.Serial,'COM3', 9600, timeout=1)
         except Exception as e:
             print(f"An error occurred during data parsing or validation: {e}")
         except KeyboardInterrupt:

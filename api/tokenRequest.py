@@ -7,6 +7,7 @@ import os
 import asyncio
 from dotenv import load_dotenv
 from ably import AblyRest
+import pandas
 import json
 
 # dotenv for local hosting and testing
@@ -46,14 +47,14 @@ async def token_request():
             print(f"Token generated: {token}")
             # troubleshooted this with gemini and she gave me the code so thank u
             token_dict = {
-                "keyName": token.key_name,
-                "expires": token.expires,
-                "issued": token.issued,
-                "capability": json.dumps(token.capability),  # Capability needs to be a JSON string
-                "clientId": token.client_id,
-                "nonce": token.nonce,
-                "timestamp": token.timestamp,
-                "mac": token.mac
+                "keyName": token['keyName'],
+                "expires": token['expires'],
+                "issued": token['issued'],
+                "capability": json.dumps(token['capability']), # Capability needs to be a JSON string
+                "clientId": token['clientId'],
+                "nonce": token['nonce'],
+                "timestamp": token['timestamp'],
+                "mac": token['mac']
             }
             return token_dict
         except Exception as e:

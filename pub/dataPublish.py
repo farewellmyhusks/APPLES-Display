@@ -2,6 +2,8 @@
 # gemini helped a lot, thanks gemini!!
 
 import os
+from time import sleep
+
 from ably import AblyRealtime
 import serial
 from dotenv import load_dotenv
@@ -9,10 +11,10 @@ import asyncio
 
 load_dotenv()
 apiKey = os.getenv("apiKey")
-print(apiKey)
 
 print("Connecting to Ably...")
 async def main():
+    thing = True
     try:
         # Use AblyRest for publishing from a backend script
         ably = AblyRealtime(apiKey)
@@ -21,12 +23,14 @@ async def main():
     except Exception as e:
         print(f"Error connecting to Ably: {e}")
         exit()
-    try:
-        ser = serial.Serial('COM3', 9600, timeout=1)
-        print("Starting to listen for Arduino data...")
-    except Exception as e:
-        print(f"Something went wrong with the serial port: {e}")
-        exit()
+    while thing == True:
+        try:
+            ser = serial.Serial('COM3', 9600, timeout=1)
+            print("Starting to listen for Arduino data...")
+            thing = False
+        except Exception as e:
+            print(f"Something went wrong with the serial port: {e}")
+            sleep(6)
     while True:
         try:
             # Check if there's data waiting on the serial port
